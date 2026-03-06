@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdowneditor</title>
+  <!-- Google Fonts: 日本語対応 + モノスペースフォント -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- MathJax 3: TeX記法（$$...$$・$...$・\[...\]）の数式レンダリング -->
+  <script>
+    // MathJax の設定（CDNスクリプトより先に定義する必要がある）
+    window.MathJax = {
+      tex: {
+        // インライン数式: $...$ および \(...\)
+        inlineMath: [["$", "$"], ["\\(", "\\)"]],
+        // ディスプレイ数式: $$...$$ および \[...\]
+        displayMath: [["$$", "$$"], ["\\[", "\\]"]],
+        // AMSmath 拡張（align・cases・matrix など）
+        packages: { "[+]": ["ams", "boldsymbol"] },
+      },
+      options: {
+        // ページロード時の自動レンダリングを無効（手動でtypesetPromiseを呼ぶ）
+        skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+        ignoreHtmlClass: "no-mathjax",
+        processHtmlClass: "mathjax-render",
+      },
+      svg: {
+        fontCache: "global", // フォントキャッシュでパフォーマンス向上
+      },
+      startup: {
+        // 初期自動レンダリングを無効にする（updatePreviewで明示的に呼ぶ）
+        typeset: false,
+      },
+    };
+  </script>
+  <!-- MathJax 本体（async でページ読み込みをブロックしない） -->
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+
+<body>
+  <!-- カスタムタイトルバー（Tauriの装飾を無効にした分） -->
+  <header class="titlebar" data-tauri-drag-region>
+    <div class="titlebar-left">
+      <!-- アプリのロゴ・アイコン -->
+      <svg class="titlebar-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="1.5"
+          stroke-linecap="round" stroke-linejoin="round" />
+        <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+          stroke-linejoin="round" />
+        <line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        <line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        <polyline points="10,9 9,9 8,9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+      <span class="titlebar-title" id="app-title">Markdowneditor</span>
+    </div>
+
+    <!-- 現在開いているファイル名と保存状態 -->
+    <div class="titlebar-center">
+      <span id="current-file-name" class="current-file">新規ドキュメント</span>
+      <span id="save-indicator" class="save-indicator" title="保存済み">●</span>
+    </div>
+
+    <!-- ウィンドウ操作ボタン -->
+    <div class="titlebar-right">
+      <button class="win-btn" id="btn-minimize" title="最小化" aria-label="最小化">&#x2212;</button>
+      <button class="win-btn" id="btn-maximize" title="最大化" aria-label="最大化">&#x25A1;</button>
+      <button class="win-btn win-btn-close" id="btn-close" title="閉じる" aria-label="閉じる">&#x2715;</button>
+    </div>
+  </header>
+
+  <!-- メインコンテナ（3ペイン） -->
+  <div class="app-container">
+
+    <!-- ───────── サイドバー: ファイルツリー + 最近のファイル ───────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">ファイル</span>
+        <div class="sidebar-actions">
+          <!-- .mdを直接開くボタン（フォルダ不要） -->
+          <button class="icon-btn" id="btn-open-file-sidebar" title=".md ファイルを開く" aria-label="ファイルを開く">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+            </svg>
+          </button>
+          <!-- 新規ファイル作成ボタン -->
+          <button class="icon-btn" id="btn-new-file" title="新規ファイル（保存先を選択）" aria-label="新規ファイル">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+              <line x1="12" y1="18" x2="12" y2="12" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
+          </button>
+          <!-- フォルダを開くボタン -->
+          <button class="icon-btn" id="btn-open-dir" title="フォルダを開く（ツリー表示）" aria-label="フォルダを開く">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ディレクトリツリー表示エリア（フォルダを開いたとき） -->
+      <div class="file-tree" id="file-tree">
+        <div class="file-tree-empty" id="file-tree-empty">
+          <!-- 最近開いたファイルのリスト -->
+          <div class="recent-files-header">最近開いたファイル</div>
+          <div id="recent-files-list" class="recent-files-list"></div>
+          <!-- ファイルが0件のとき表示 -->
+          <div id="recent-files-empty" class="recent-files-empty" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+            </svg>
+            <p>最近のファイルはありません<br /><small>↑ のボタンからファイルを開いてください</small></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- サイドバーのサイズ変更ハンドル -->
+      <div class="resize-handle" id="sidebar-resize"></div>
+    </aside>
+
+    <!-- ───────── 中央: Markdownエディタ ───────── -->
+    <main class="editor-pane" id="editor-pane">
+      <div class="pane-toolbar">
+        <div class="toolbar-left">
+          <button class="toolbar-btn" id="btn-open-file" title="ファイルを開く (Ctrl+O)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+            </svg>
+            開く
+          </button>
+          <button class="toolbar-btn" id="btn-save" title="保存 (Ctrl+S)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17,21 17,13 7,13 7,21" />
+              <polyline points="7,3 7,8 15,8" />
+            </svg>
+            保存
+          </button>
+          <button class="toolbar-btn" id="btn-save-as" title="名前をつけて保存 (Ctrl+Shift+S)">
+            名前をつけて保存
+          </button>
+        </div>
+        <div class="toolbar-right">
+          <!-- 文字数・行数カウンター -->
+          <span class="editor-stats" id="editor-stats">0 文字 · 1 行</span>
+          <!-- 読み取り専用（プレビューのみ）モード -->
+          <button class="toolbar-btn toolbar-btn-toggle" id="btn-readonly" title="読み取り専用モード（プレビューのみ）">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+              <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="1.8" />
+            </svg>
+            読み取り専用
+          </button>
+          <!-- プレビューのオン/オフ切り替え -->
+          <button class="toolbar-btn toolbar-btn-toggle active" id="btn-toggle-preview"
+            title="プレビューの表示/非表示 (Ctrl+Shift+P)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            プレビュー
+          </button>
+        </div>
+      </div>
+
+      <!-- CodeMirror 6 のマウント先 -->
+      <div id="codemirror-host" class="codemirror-host"></div>
+    </main>
+
+    <!-- ペイン間のリサイズハンドル -->
+    <div class="pane-divider" id="pane-divider"></div>
+
+    <!-- ───────── 右: HTMLプレビュー ───────── -->
+    <section class="preview-pane" id="preview-pane">
+      <div class="pane-toolbar preview-toolbar">
+        <span class="preview-label">プレビュー</span>
+        <button class="icon-btn" id="btn-copy-html" title="HTMLをコピー" aria-label="HTMLをコピー">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        </button>
+      </div>
+      <!-- パース済み HTML を流し込む場所 -->
+      <div id="preview-content" class="preview-content markdown-body">
+        <div class="preview-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14,2 14,8 20,8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          <p>Markdownを入力するとここにプレビューが表示されます</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+
+  <!-- トースト通知 -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- 右クリック書式設定コンテキストメニュー -->
+  <div class="ctx-menu" id="ctx-menu" role="menu" aria-label="書式設定">
+    <!-- 見出し -->
+    <div class="ctx-group-label">見出し</div>
+    <button class="ctx-item" data-format="h1" role="menuitem">
+      <span class="ctx-icon">H1</span><span class="ctx-label">見出し 1</span><span class="ctx-hint">#</span>
+    </button>
+    <button class="ctx-item" data-format="h2" role="menuitem">
+      <span class="ctx-icon">H2</span><span class="ctx-label">見出し 2</span><span class="ctx-hint">##</span>
+    </button>
+    <button class="ctx-item" data-format="h3" role="menuitem">
+      <span class="ctx-icon">H3</span><span class="ctx-label">見出し 3</span><span class="ctx-hint">###</span>
+    </button>
+
+    <div class="ctx-divider"></div>
+
+    <!-- テキスト装飾 -->
+    <div class="ctx-group-label">テキスト装飾</div>
+    <button class="ctx-item" data-format="bold" role="menuitem">
+      <span class="ctx-icon" style="font-weight:700">B</span><span class="ctx-label">太字</span><span
+        class="ctx-hint">**</span>
+    </button>
+    <button class="ctx-item" data-format="italic" role="menuitem">
+      <span class="ctx-icon" style="font-style:italic">I</span><span class="ctx-label">斜体</span><span
+        class="ctx-hint">*</span>
+    </button>
+    <button class="ctx-item" data-format="strikethrough" role="menuitem">
+      <span class="ctx-icon" style="text-decoration:line-through">S</span><span class="ctx-label">打ち消し</span><span
+        class="ctx-hint">~~</span>
+    </button>
+
+    <div class="ctx-divider"></div>
+
+    <!-- その他 -->
+    <button class="ctx-item" data-format="code" role="menuitem">
+      <span class="ctx-icon">`</span><span class="ctx-label">インラインコード</span><span class="ctx-hint">`code`</span>
+    </button>
+    <button class="ctx-item" data-format="codeblock" role="menuitem">
+      <span class="ctx-icon">⌨</span><span class="ctx-label">コードブロック</span><span class="ctx-hint">```</span>
+    </button>
+    <button class="ctx-item" data-format="quote" role="menuitem">
+      <span class="ctx-icon">❝</span><span class="ctx-label">引用</span><span class="ctx-hint">&gt;</span>
+    </button>
+    <button class="ctx-item" data-format="link" role="menuitem">
+      <span class="ctx-icon">🔗</span><span class="ctx-label">リンク</span><span class="ctx-hint">[]()</span>
+    </button>
+
+    <div class="ctx-divider"></div>
+
+    <!-- リスト -->
+    <div class="ctx-group-label">リスト</div>
+    <button class="ctx-item" data-format="ul" role="menuitem">
+      <span class="ctx-icon">•</span><span class="ctx-label">箇条書き</span><span class="ctx-hint">-</span>
+    </button>
+    <button class="ctx-item" data-format="ol" role="menuitem">
+      <span class="ctx-icon">1.</span><span class="ctx-label">番号付き</span><span class="ctx-hint">1.</span>
+    </button>
+    <button class="ctx-item" data-format="checklist" role="menuitem">
+      <span class="ctx-icon">☑</span><span class="ctx-label">チェックリスト</span><span class="ctx-hint">- [ ]</span>
+    </button>
+  </div>
+
+  <!-- アプリのエントリポイント（ES Module） -->
+  <script type="module" src="./main.js"></script>
+</body>
+
+</html>

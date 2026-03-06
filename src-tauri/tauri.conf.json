@@ -1,0 +1,100 @@
+{
+    "build": {
+        "beforeDevCommand": "npm run dev",
+        "beforeBuildCommand": "npm run build",
+        "devPath": "http://localhost:1420",
+        "distDir": "../dist"
+    },
+    "package": {
+        "productName": "Markdowneditor",
+        "version": "0.1.0"
+    },
+    "tauri": {
+        "allowlist": {
+            "all": false,
+            "shell": {
+                "all": false,
+                "open": true
+            },
+            "dialog": {
+                "all": false,
+                "open": true,
+                "save": true
+            },
+            "fs": {
+                "all": false,
+                "readFile": true,
+                "writeFile": true,
+                "readDir": true,
+                "createDir": true,
+                "exists": true,
+                "scope": [
+                    "**"
+                ]
+            },
+            "path": {
+                "all": true
+            },
+            "window": {
+                "all": false,
+                "startDragging": true,
+                "close": true,
+                "maximize": true,
+                "minimize": true,
+                "unmaximize": true,
+                "unminimize": true,
+                "show": true,
+                "hide": true,
+                "setTitle": true,
+                "setFullscreen": true
+            }
+        },
+        "bundle": {
+            "active": true,
+            "category": "ProductivityApplication",
+            "copyright": "",
+            "deb": {
+                "depends": []
+            },
+            "externalBin": [],
+            "icon": [],
+            "identifier": "com.markdowneditor.app",
+            "longDescription": "",
+            "macOS": {
+                "entitlements": null,
+                "exceptionDomain": "",
+                "frameworks": [],
+                "providerShortName": null,
+                "signingIdentity": null
+            },
+            "resources": [],
+            "shortDescription": "",
+            "targets": "all",
+            "windows": {
+                "certificateThumbprint": null,
+                "digestAlgorithm": "sha256",
+                "timestampUrl": ""
+            }
+        },
+        "security": {
+            "csp": null
+        },
+        "updater": {
+            "active": false
+        },
+        "windows": [
+            {
+                "fullscreen": false,
+                "height": 780,
+                "resizable": true,
+                "title": "Markdowneditor",
+                "width": 1280,
+                "minWidth": 800,
+                "minHeight": 600,
+                "decorations": false,
+                "transparent": false,
+                "center": true
+            }
+        ]
+    }
+}
