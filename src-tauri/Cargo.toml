@@ -1,5 +1,5 @@
 [package]
-name = "markdownediter"
+name = "markdowneditor"
 version = "0.1.0"
 description = "Rustパワードなネイティブ Markdownエディタ"
 authors = []
