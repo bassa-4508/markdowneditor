@@ -261,6 +261,137 @@ async function updatePreview(text) {
             makeImagesResizable();
         }
 
+        // ─ Kroki API を使った汎用ダイアグラムレンダリング関数 ─
+        // D2, bytefield 等に対応
+        async function renderKroki(diagramEls, type) {
+            for (const codeEl of diagramEls) {
+                const source = codeEl.textContent.trim();
+                const wrapper = document.createElement("div");
+                wrapper.className = `diagram-block ${type}-block`;
+                try {
+                    // pako (zlib/deflate) で圧縮して base64 エンコード
+                    // kroki.io の bytefield は json/yaml ではなく xml/svg, またはソースそのままを送る
+                    const data = new TextEncoder().encode(source);
+                    const compressed = window.pako.deflate(data, { level: 9 });
+                    const result = String.fromCharCode.apply(null, compressed);
+                    const encodedUrl = btoa(result).replace(/\+/g, '-').replace(/\//g, '_');
+
+                    const img = document.createElement("img");
+                    img.src = `https://kroki.io/${type}/svg/${encodedUrl}`;
+                    img.alt = `${type} Diagram`;
+                    img.className = "diagram-img";
+                    img.loading = "lazy";
+                    img.addEventListener("error", () => {
+                        wrapper.innerHTML = `<div class="diagram-error"><span class="diagram-error-icon">⚠</span>${type} のレンダリングに失敗しました（ネット接続確認）</div>`;
+                    });
+                    wrapper.appendChild(img);
+                } catch (err) {
+                    wrapper.innerHTML = `<div class="diagram-error"><span class="diagram-error-icon">⚠</span>${type} エンコードエラー: ${String(err)}</div>`;
+                }
+                codeEl.closest("pre").replaceWith(wrapper);
+            }
+        }
+
+        // ─ D2 ダイアグラム (kroki.io) ─
+        await renderKroki([...dom.previewContent.querySelectorAll("pre > code.language-d2")], "d2");
+
+        // ─ bytefield-svg (kroki.io) ─
+        await renderKroki([...dom.previewContent.querySelectorAll("pre > code.language-bytefield")], "bytefield");
+
+        // ─ WaveDrom (CDNライブラリ) ─
+        if (window.WaveDrom) {
+            let wdSeq = 0;
+            dom.previewContent.querySelectorAll("pre > code.language-wavedrom").forEach(codeEl => {
+                const source = codeEl.textContent.trim();
+                const wrapper = document.createElement("div");
+                wrapper.className = "diagram-block wavedrom-block";
+                const tempId = `wavedrom-${Date.now()}-${wdSeq++}`;
+
+                // textarea をダミー生成して js がパースできるよう対応
+                const scriptEl = document.createElement("script");
+                scriptEl.type = "WaveDrom";
+                scriptEl.id = tempId;
+                scriptEl.textContent = source;
+                wrapper.appendChild(scriptEl);
+                codeEl.closest("pre").replaceWith(wrapper);
+            });
+            // DOM更新完了後にWaveDromで一括レンダリング
+            setTimeout(() => {
+                try { window.WaveDrom.ProcessAll(); }
+                catch (e) { console.warn("WaveDromレンダリングエラー", e); }
+            }, 50);
+        }
+
+        // ─ Vega / Vega-Lite (CDNライブラリ) ─
+        if (window.vegaEmbed) {
+            let vegaSeq = 0;
+            for (const codeEl of [...dom.previewContent.querySelectorAll("pre > code.language-vega"), ...dom.previewContent.querySelectorAll("pre > code.language-vega-lite")]) {
+                const source = codeEl.textContent.trim();
+                const isLite = codeEl.className.includes("vega-lite");
+                const wrapper = document.createElement("div");
+                wrapper.className = "diagram-block vega-block";
+                const tempId = `vega-${Date.now()}-${vegaSeq++}`;
+                wrapper.id = tempId;
+                codeEl.closest("pre").replaceWith(wrapper);
+
+                try {
+                    const spec = JSON.parse(source);
+                    vegaEmbed(`#${tempId}`, spec, { mode: isLite ? "vega-lite" : "vega", actions: false });
+                } catch (e) {
+                    wrapper.innerHTML = `<div class="diagram-error"><span class="diagram-error-icon">⚠</span>Vega JSON パースエラー: ${String(e)}</div>`;
+                }
+            }
+        }
+
+        // ─ Graphviz DOT (CDNライブラリ d3-graphviz) ─
+        if (window.d3 && window.d3.select) {
+            let gvSeq = 0;
+            dom.previewContent.querySelectorAll("pre > code.language-dot, pre > code.language-graphviz").forEach(codeEl => {
+                const source = codeEl.textContent.trim();
+                const wrapper = document.createElement("div");
+                wrapper.className = "diagram-block graphviz-block";
+                const tempId = `graphviz-${Date.now()}-${gvSeq++}`;
+                wrapper.id = tempId;
+                codeEl.closest("pre").replaceWith(wrapper);
+
+                // レンダリング (非同期にWASMロードされる)
+                try {
+                    window.d3.select(`#${tempId}`)
+                        .graphviz({ useWorker: false })
+                        .renderDot(source)
+                        .onerror(function () {
+                            wrapper.innerHTML = `<div class="diagram-error"><span class="diagram-error-icon">⚠</span>Graphvizの描画に失敗しました</div>`;
+                        });
+                } catch (e) {
+                    wrapper.innerHTML = `<div class="diagram-error"><span class="diagram-error-icon">⚠</span>Graphviz エラー: ${String(e)}</div>`;
+                }
+            });
+        }
+
+        // ─ ABC Notation (楽譜 CDNライブラリ ABCJS) ─
+        if (window.ABCJS) {
+            let abcSeq = 0;
+            dom.previewContent.querySelectorAll("pre > code.language-abc").forEach(codeEl => {
+                const source = codeEl.textContent.trim();
+                const wrapper = document.createElement("div");
+                wrapper.className = "diagram-block abc-block";
+                const tempId = `abc-${Date.now()}-${abcSeq++}`;
+                wrapper.id = tempId;
+                // SVG用コンテナとMIDI用コンテナを用意
+                wrapper.innerHTML = `<div class="abc-visual"></div><div class="abc-audio"></div>`;
+                codeEl.closest("pre").replaceWith(wrapper);
+
+                try {
+                    ABCJS.renderAbc(wrapper.querySelector(".abc-visual"), source, { responsive: "resize" });
+                    // MIDIオーディオプレイヤーが必要であれば有効化
+                    /* ABCJS.renderSynth(wrapper.querySelector(".abc-audio"), ...); */
+                } catch (e) {
+                    wrapper.innerHTML = `<div class="diagram-error"><span class="diagram-error-icon">⚠</span>ABC Notation エラー: ${String(e)}</div>`;
+                }
+            });
+        }
+
+
     } catch (err) {
         console.error("Markdownパースエラー:", err);
     }

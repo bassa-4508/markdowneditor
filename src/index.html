@@ -42,6 +42,32 @@
   </script>
   <!-- MathJax 本体（async でページ読み込みをブロックしない） -->
   <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <!-- 外部ダイアグラム・レンダリングライブラリ -->
+
+  <!-- WaveDrom (波形ダイアグラム) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.3.0/skins/default.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wavedrom/3.3.0/wavedrom.min.js"></script>
+
+  <!-- Vega & Vega-Lite (デーダビジュアライゼーション) -->
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+
+  <!-- Graphviz (DOT言語) via d3-graphviz (d3.js 依存) -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/@hpcc-js/wasm@2.19.1/dist/index.min.js"></script>
+  <script>
+    // d3-graphviz が参照する wasm のパスを明示的に指定
+    window["@hpcc-js/wasm"] = window.hpccWasm;
+  </script>
+  <script src="https://unpkg.com/d3-graphviz@5.6.0/build/d3-graphviz.js"></script>
+
+  <!-- ABC Notation (楽譜) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.2.2/abcjs-basic-min.js"></script>
+
+  <!-- Pako (Zlib/Deflate 圧縮展開：Kroki等へのエンコードで使用) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 </head>
 
 <body>

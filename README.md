@@ -2,8 +2,6 @@
 
 Tauri + Rust + CodeMirror 6 を用いて構築された、軽量かつ高速な Markdown エディタです。
 
-![MarkdownEditer](https://github.com/placeholder/markdownediter/blob/main/screenshot.png?raw=true)
-
 ## 主な機能
 
 - ⚡ **超高速＆軽量**: Rust バックエンドによる高速なファイル I/O と、プレーンな JavaScript によるフロントエンドでサクサク動作します。
@@ -26,8 +24,8 @@ Tauri + Rust + CodeMirror 6 を用いて構築された、軽量かつ高速な 
 
 ```bash
 # リポジトリのクローン
-git clone https://github.com/yourusername/markdownediter.git
-cd markdownediter
+git clone https://github.com/bassa-4508/markdowneditor.git
+cd markdowneditor
 
 # 依存関係のインストール
 npm install
